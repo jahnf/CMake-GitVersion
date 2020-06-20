@@ -1,37 +1,33 @@
 # CMake-GitVersion.
-# CMake module for generating version information using information from git with fallback options
-# when building without git (e.g. when building from sources with exported archives) dsdf
-# Best suited with git-flow workflows
-# - See also: https://www.atlassian.com/de/git/tutorials/comparing-workflows/gitflow-workflow
-#
-# Follows [semantic versioning](https://semver.org)
-# and creates version strings that can be used by debian and rpm packages.
-#
-# Originally written for building dcled-hidapi - userland driver for the Dream Cheeky LED Message Board
-# https://github.com/jahnf/dcled-hidapi
-#
-# Since then often reused, extended and adjusted in multiple projects
-# (also used in Projecteur: https://github.com/jahnf/Projecteur).
-# Now released as it's own project for better reusability and documentation.
-#
-# Distributed under the MIT License. See accompanying LICENSE file.
+# (Yet another) automatic version generation for C++ CMake projects.
 
-# Definition:
-# LAST_TAG_VERSION = latest tagged version (e.g. 1.2.0 for v1.2.0) or 0.0.0 if it does not exist.
-#
+# * Generates version information using information from git (tags) with fallback options
+#   when building without git (e.g. when building from sources with exported archives).
+# * Use custom templates for generated sources (e.g. also create resource files (see examples))
+# * Uses semantic versioning (https://semver.org/)
+# * Best suited with git-flow workflows
+#   * See: https://www.atlassian.com/de/git/tutorials/comparing-workflows/gitflow-workflow
+#   * See: https://nvie.com/posts/a-successful-git-branching-model/
+# * Generated version strings are compatible to/and can be used by debian and rpm packages.
+
+# ## Version Generation
+
+# Defines
+# - `LAST_TAG_VERSION`: latest tagged version (e.g. 1.2.0 for tag v1.2.0) or 0.0.0 if no tag exists.
+# - `DIST`: commit count distance to latest version tag.
+
 # Version Number rules:
-# - on 'master':  X.Y.Z[-DIST] (using LAST_TAG_VERSION),
-#                 while DIST should always be 0 on the master branch
-# - on 'develop' and other branches : X.Y.Z-ALPHA_FLAG.DIST (using LAST_TAG_VERSION, incrementing Y by 1)
-# - on release branches: X.Y.Z-RC_FLAG.DIST (using semver from release branch name
-#                                            or XYZ like on develop if not possible)
-#                        DIST is either calculated to last tag or to the closest rc-X.Y.Z tag
-
-# * DISTANCE is only added on versions from master branch when != 0
-# * On all other branches DISTANCE is always added.
-# * All version numbers besides the ones from master have a pre-release identifier set.
-# * When creating the version string and the PATCH number is 0 - the patch number is omitted.
-#  (e.g. 1.2.0 will be 1.2)
+# - on _master_:  `X.Y.Z`[-`DIST`] (using `LAST_TAG_VERSION`), while `DIST` should always be 0 on the master branch.
+# - on _develop_ and other branches: `X.Y.Z`-`ALPHA_FLAG`.`DIST` (using `LAST_TAG_VERSION`, `Y` incremented by 1)
+# - on release branches: `X.Y.Z`-`RC_FLAG`.`DIST` (extracting `X.Y.Z` from release branch name or from _develop_ as fallback). \
+#   `DIST` is either calculated to last version tag or to the closest `rc-X.Y.Z` tag.
+# - `DIST` is added to all version numbers, except:
+#   - Versions on _master_ and on _hotfix_ branches with `DIST` equal to 0
+# - All version numbers have a pre-release identifier set, except:
+#   - Version on _master_ and
+#   - versions on _hotfix_ branches with `DIST` equal to 0
+# - When creating the version string and the PATCH number is 0 - the patch number is omitted.
+#   (e.g. 1.2.0 will be 1.2)
 
 ### Configuration - this may be adjusted to the personal and project requirements
 set(VERSION_TAG_PREFIX v)     # Should be the same as configured in git-flow
@@ -41,51 +37,11 @@ set(VERSION_RC_START_TAG_PREFIX "rc-") # If available tags with the given prefix
 set(RC_BRANCH_PREFIX release) # e.g. release/0.2
 set(HOTFIX_BRANCH_PREFIX hotfix) # e.g. hotfix/2.0.3
 
-
+# Let functions in this module know their own directory
 set(_GitVersion_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
 
-
-
 # --------------------------------------------------------------------------------------------------
-function(add_version_info)
-  set(options DEFAULT_TEMPLATES) # no default templates option
-  set(oneValueArgs
-    TARGET    # The build target
-    DIRECTORY # Directory from which to get the git version info
-  )
-  set(multiValueArgs TEMPLATES) # Templates that are configured and added to the target
-  set(requiredArgs TARGET DIRECTORY)
-  cmake_parse_arguments(VI "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-  foreach(arg IN LISTS requiredArgs)
-    if("${VI_${arg}}" STREQUAL "")
-      message(FATAL_ERROR "Required argument '${arg}' is not set.")
-    endif()
-  endforeach()
-
-  if(NOT TARGET ${VI_TARGET})
-    message(FATAL_ERROR "Argument 'TARGET' needs to be a valid target.")
-  endif()
-
-  string(MAKE_C_IDENTIFIER "${VI_TARGET}" prefix)
-
-  if(VI_DEFAULT_TEMPLATES)
-    set(DEFAULT_TEMPLATES DEFAULT_TEMPLATES)
-  endif()
-
-  list(LENGTH VI_TEMPLATES NUM_TEMPLATES)
-  if(NUM_TEMPLATE_ARGS NOT EQUAL 0)
-    set(TEMPLATES TEMPLATES)
-  endif()
-
-  add_version_info_custom_prefix(TARGET ${VI_TARGET}
-                                 PREFIX ${prefix}
-                                 DIRECTORY ${VI_DIRECTORY}
-                                 ${TEMPLATES} ${VI_TEMPLATES}
-                                 ${DEFAULT_TEMPLATES})
-endfunction()
-
-
+# Helper method - usually never called directly:
 # Get the version information for a directory, sets the following variables
 # ${prefix}_VERSION_SUCCESS // 0 on error (e.g. git not found), 1 on success
 # ${prefix}_VERSION_MAJOR
@@ -106,9 +62,8 @@ endfunction()
 #
 # A version 'type' (release or develop) in case the branch cannot be determined via git
 # - #{prefix}_FALLBACK_VERSION_TYPE
-
+#
 # The environment variable FALLBACK_BRANCH will be used if the branch cannot be determined
-
 function(get_version_info prefix directory)
   set(${prefix}_VERSION_SUCCESS 0 PARENT_SCOPE)
   set(${prefix}_VERSION_MAJOR 0)
@@ -336,7 +291,7 @@ function(get_version_info prefix directory)
 
   # Check if overrule version is greater than dynamically created one
   if("${${prefix}_CUSTOM_VERSION_MAJOR}.${${prefix}_CUSTOM_VERSION_MINOR}.${${prefix}_CUSTOM_VERSION_PATCH}" VERSION_GREATER
-  "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}.${${prefix}_VERSION_PATCH}")
+     "${${prefix}_VERSION_MAJOR}.${${prefix}_VERSION_MINOR}.${${prefix}_VERSION_PATCH}")
     set(${prefix}_VERSION_MAJOR ${${prefix}_CUSTOM_VERSION_MAJOR})
     set(${prefix}_VERSION_MINOR ${${prefix}_CUSTOM_VERSION_MINOR})
     set(${prefix}_VERSION_PATCH ${${prefix}_CUSTOM_VERSION_PATCH})
@@ -364,21 +319,21 @@ function(get_version_info prefix directory)
   set(${prefix}_VERSION_STRING "${VERSION_STRING}" PARENT_SCOPE)
 endfunction()
 
+# --------------------------------------------------------------------------------------------------
 # Add version information to a target, header and source file are configured from templates.
-#  (GitVersion.h.in and GitVersion.cc.in if no other templates are defined)
+#  (defaults to GitVersion.h.in and GitVersion.cc.in if no other templates are defined)
 # Variables available to input templates
 # @PREFIX@ = target prefix name given in the function call, must be a valid C-identifier
 # @VERSION_MAJOR@, @VERSION_MINOR@, @VERSION_PATCH@, @VERSION_FLAG@, @VERSION_DISTANCE@
 # @VERSION_SHORTHASH@, @VERSION_FULLHASH@, @VERSION_STRING@, @VERSION_ISDIRTY, @VERSION_BRANCH@
-function(add_version_info_custom_prefix)
-  set(options DEFAULT_TEMPLATES) # add default templates option
+function(add_version_info)
   set(oneValueArgs
     TARGET    # The build target
-    PREFIX    # The prefix/name for templates
+    PREFIX    # The prefix/name for templates, must be a valid C identifier
     DIRECTORY # Directory from which to get the git version info
   )
   set(multiValueArgs TEMPLATES) # Templates that are configured and added to the target
-  set(requiredArgs TARGET DIRECTORY)
+  set(requiredArgs TARGET)
   cmake_parse_arguments(VI "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   foreach(arg IN LISTS requiredArgs)
@@ -388,17 +343,27 @@ function(add_version_info_custom_prefix)
   endforeach()
 
   if(NOT TARGET ${VI_TARGET})
-  message(FATAL_ERROR "Argument 'TARGET' needs to be a valid target.")
+    message(FATAL_ERROR "Argument 'TARGET' needs to be a valid target.")
   endif()
 
-  if(VI_DEFAULT_TEMPLATES)
+  list(LENGTH VI_TEMPLATES NUM_TEMPLATES)
+  if(NUM_TEMPLATES EQUAL 0)
     # Add default templates
     list(APPEND VI_TEMPLATES "${_GitVersion_DIRECTORY}/GitVersion.h.in")
     list(APPEND VI_TEMPLATES "${_GitVersion_DIRECTORY}/GitVersion.cc.in")
   endif()
   string(MAKE_C_IDENTIFIER "${VI_TARGET}" targetid)
 
-  # Set default values, in case sth goes wrong badly
+  if(NOT VI_PREFIX)
+    string(MAKE_C_IDENTIFIER "${VI_TARGET}" VI_PREFIX)
+  endif()
+
+  if(NOT VI_DIRECTORY)
+    message(STATUS "add_version_info: defaulting DIRECTORY to '${CMAKE_CURRENT_SOURCE_DIR}'")
+    set(VI_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  endif()
+
+  # Set default values, in case sth goes wrong
   set(VERSION_MAJOR 0)
   set(VERSION_MINOR 0)
   set(VERSION_PATCH 0)
@@ -417,7 +382,7 @@ function(add_version_info_custom_prefix)
   endif()
   get_target_property(TARGET_VMINOR ${VI_TARGET} VERSION_MINOR)
   if(TARGET_VMINOR)
-    set(${VI_PREVIX}_CUSTOM_VERSION_MINOR ${TARGET_VMINOR})
+    set(${VI_PREFIX}_CUSTOM_VERSION_MINOR ${TARGET_VMINOR})
     set(VERSION_MINOR ${TARGET_VMINOR})
   endif()
   get_target_property(TARGET_VPATCH ${VI_TARGET} VERSION_PATCH)
@@ -429,15 +394,22 @@ function(add_version_info_custom_prefix)
     set(${VI_PREFIX}_FALLBACK_VERSION_TYPE ${TARGET_VTYPE})
   endif()
 
+  # Check for ArchiveVersionInfo within same directory and use that info is available ...
   include(ArchiveVersionInfo_${VI_PREFIX} OPTIONAL RESULT_VARIABLE ARCHIVE_VERSION_PRESENT)
   if(ARCHIVE_VERSION_PRESENT AND ${VI_PREFIX}_VERSION_SUCCESS)
     message(STATUS "Info: Version information from archive file.")
+
+  # ... get version info via git otherwise.
   else()
-    get_version_info(${VI_PREFIX} "${directory}")
+    get_version_info(${VI_PREFIX} "${VI_DIRECTORY}")
+
+    # Check if valid version information could be aquired...
     if("${${VI_PREFIX}_VERSION_FULLHASH}" STREQUAL "unknown"
        OR "${${VI_PREFIX}_VERSION_SHORTHASH}" STREQUAL "unknown"
        OR "${${VI_PREFIX}_VERSION_FULLHASH}" STREQUAL ""
        OR "${${VI_PREFIX}_VERSION_SHORTHASH}" STREQUAL "")
+
+       # ...and check for ArchiveExportInfo as fallback solution..
        include(ArchiveExportInfo OPTIONAL RESULT_VARIABLE GIT_EXPORT_INFO_FILE_PRESENT)
        if("${GIT_EXPORT_VERSION_SHORTHASH}" MATCHES "(.?Format:).*")
          set(HAS_GIT_EXPORT_INFO OFF)
@@ -510,7 +482,7 @@ function(add_version_info_custom_prefix)
   set(VERSION_STRING ${${VI_PREFIX}_VERSION_STRING})
   set(VERSION_ISDIRTY ${${VI_PREFIX}_VERSION_ISDIRTY})
   set(VERSION_BRANCH ${${VI_PREFIX}_VERSION_BRANCH})
-  set_target_properties(${target} PROPERTIES
+  set_target_properties(${VI_TARGET} PROPERTIES
     VERSION_MAJOR "${VERSION_MAJOR}"
     VERSION_MINOR "${VERSION_MINOR}"
     VERSION_PATCH "${VERSION_PATCH}"
@@ -536,22 +508,24 @@ function(add_version_info_custom_prefix)
     list(APPEND output_files "${output_file}")
   endforeach()
 
+  # Generate archive version info. File can be included in source archives to have detailed
+  # version information available without being a git repository.
+  # See https://github.com/jahnf/Projecteur, where it is used for the 'source-archive' build target.
   configure_file("${_GitVersion_DIRECTORY}/ArchiveVersionInfo.cmake.in"
                  "archive_append/cmake/modules/ArchiveVersionInfo_${VI_PREFIX}.cmake" @ONLY)
 
-  get_target_property(type ${target} TYPE)
+  get_target_property(type ${VI_TARGET} TYPE)
   if(type STREQUAL "SHARED_LIBRARY")
-    set_target_properties(${target} PROPERTIES SOVERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
-    set_property(TARGET ${target} PROPERTY VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+    set_target_properties(${VI_TARGET} PROPERTIES SOVERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
+    set_property(TARGET ${VI_TARGET} PROPERTY VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
   endif()
-  if
 
   # If any templates where configured, add them to the project sources
   list(LENGTH output_files NUM_CONFIGURED_FILES)
-  if(NUM_TEMPLATE_ARGS NOT EQUAL 0)
-    set_property(TARGET ${target} APPEND PROPERTY SOURCES ${output_files})
-    target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${output_dir}>)
+  if(NOT NUM_CONFIGURED_FILES EQUAL 0)
+    set_property(TARGET ${VI_TARGET} APPEND PROPERTY SOURCES ${output_files})
+    target_include_directories(${VI_TARGET} PUBLIC $<BUILD_INTERFACE:${output_dir}>)
   endif()
-  message(STATUS "Version info for '${target}': ${VERSION_STRING}")
+  message(STATUS "Version info for '${VI_TARGET}': ${VERSION_STRING} (prefix=${VI_PREFIX})")
 endfunction()
 

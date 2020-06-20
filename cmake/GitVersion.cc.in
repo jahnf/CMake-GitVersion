@@ -1,6 +1,6 @@
-#include "@TARGET@-GitVersion.h"
+#include "@PREFIX@-GitVersion.h"
 
-namespace @TARGET@ {
+namespace @PREFIX@ {
   const char* version_string() { return "@VERSION_STRING@"; }
   unsigned int version_major() { return @VERSION_MAJOR@; }
   unsigned int version_minor() { return @VERSION_MINOR@; }

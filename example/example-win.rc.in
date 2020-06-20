@@ -1,0 +1,49 @@
+// resource script
+#include <winresrc.h>
+
+IDI_ICON1 ICON DISCARDABLE "example-win.ico"
+
+#ifndef DEBUG
+#define VER_DEBUG                   0
+#else
+#define VER_DEBUG                   VS_FF_DEBUG
+#endif
+
+// Version
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_PATCH@,@VERSION_DISTANCE@
+ PRODUCTVERSION @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_PATCH@,@VERSION_DISTANCE@
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+ FILEFLAGS VER_DEBUG
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "CMake-GitVersion Example Ltd.\0"
+            VALUE "FileDescription", "CMake-GitVersion Example\0"
+            VALUE "ProductName", "Example - @VERSION_STRING@\0"
+            VALUE "FileVersion", "@VERSION_MAJOR@, @VERSION_MINOR@, @VERSION_PATCH@, @VERSION_DISTANCE@\0"
+            VALUE "InternalName", "example-win\0"
+            VALUE "LegalCopyright", "Copyright (c) 2020 Cmake-GitVersion Example Ltd.\0"
+            VALUE "OriginalFilename", "example-2.exe\0"
+            VALUE "ProductVersion", "@VERSION_MAJOR@, @VERSION_MINOR@, @VERSION_PATCH@, @VERSION_DISTANCE@\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        /* The following line should only be modified for localized versions.     */
+        /* It consists of any number of WORD,WORD pairs, with each pair           */
+        /* describing a language,codepage combination supported by the file.      */
+        /*                                                                        */
+        /* For example, a file might have values "0x409,1252" indicating that it  */
+        /* supports English language (0x409) in the Windows ANSI codepage (1252). */
+
+        VALUE "Translation", 0x409, 1252
+
+    END
+END
+

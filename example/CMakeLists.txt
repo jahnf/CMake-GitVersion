@@ -27,3 +27,14 @@ endif()
 add_library(example-lib SHARED example-shared.cc)
 add_version_info(TARGET example-lib)
 
+
+# Example of version info in a static library used in multiple targets
+add_library(versionlib STATIC versionlib.cc)
+add_version_info(TARGET versionlib PREFIX example)
+
+# Targets using the static version lib
+add_executable(example-3 example.cc)
+target_link_libraries(example-3 PRIVATE versionlib)
+
+add_executable(example-4 example.cc)
+target_link_libraries(example-4 PRIVATE versionlib)

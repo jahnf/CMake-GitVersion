@@ -359,7 +359,7 @@ function(add_version_info)
   endif()
 
   if(NOT VI_DIRECTORY)
-    message(STATUS "add_version_info: defaulting DIRECTORY to '${CMAKE_CURRENT_SOURCE_DIR}'")
+    # message(STATUS "add_version_info: defaulting DIRECTORY to '${CMAKE_CURRENT_SOURCE_DIR}'")
     set(VI_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   endif()
 
